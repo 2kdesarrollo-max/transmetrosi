@@ -1,0 +1,890 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Transmetro - Simulador</title>
+    <style>
+      :root {
+        --bg: #0b1220;
+        --panel: #0f1a2e;
+        --card: #0e1730;
+        --muted: #8aa0c2;
+        --text: #e7efff;
+        --border: rgba(255, 255, 255, 0.08);
+        --ok: #22c55e;
+        --warn: #f59e0b;
+        --bad: #ef4444;
+        --blue: #3b82f6;
+      }
+      html, body { height: 100%; }
+      body {
+        margin: 0;
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+        background: radial-gradient(1200px 800px at 20% 20%, #122248 0%, var(--bg) 55%);
+        color: var(--text);
+      }
+      .wrap { max-width: 1200px; margin: 0 auto; padding: 24px; }
+      .top {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 18px;
+      }
+      h1 { margin: 0; font-size: 20px; letter-spacing: 0.02em; }
+      .sub { margin-top: 6px; color: var(--muted); font-size: 12px; }
+      .pill {
+        font-size: 12px;
+        border: 1px solid var(--border);
+        background: rgba(255,255,255,0.03);
+        padding: 8px 10px;
+        border-radius: 10px;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      .grid { display: grid; grid-template-columns: 420px 1fr; gap: 16px; }
+      .panel {
+        background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 14px;
+      }
+      .sectionTitle { font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
+      .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+      .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+      .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+      label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.15em; color: var(--muted); }
+      input, select {
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: rgba(0,0,0,0.25);
+        color: var(--text);
+        padding: 10px 10px;
+        outline: none;
+        font-size: 13px;
+      }
+      input[type="number"] { appearance: textfield; }
+      .buttons { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+      button {
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: rgba(255,255,255,0.04);
+        color: var(--text);
+        padding: 10px 12px;
+        font-weight: 700;
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        cursor: pointer;
+      }
+      button.primary { background: rgba(59,130,246,0.22); border-color: rgba(59,130,246,0.45); }
+      button.danger { background: rgba(239,68,68,0.18); border-color: rgba(239,68,68,0.45); }
+      button:disabled { opacity: 0.55; cursor: not-allowed; }
+      .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px; }
+      .stat {
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 10px;
+        background: rgba(0,0,0,0.18);
+      }
+      .stat .k { font-size: 11px; text-transform: uppercase; letter-spacing: 0.18em; color: var(--muted); }
+      .stat .v { margin-top: 6px; font-size: 18px; font-weight: 900; }
+      .ok { color: var(--ok); }
+      .warn { color: var(--warn); }
+      .bad { color: var(--bad); }
+      .log {
+        height: 640px;
+        overflow: auto;
+        border-radius: 14px;
+        border: 1px solid var(--border);
+        background: rgba(0,0,0,0.22);
+        padding: 12px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 12px;
+        line-height: 1.45;
+        white-space: pre-wrap;
+      }
+      .logLine { margin: 0 0 6px; }
+      .hint { font-size: 12px; color: var(--muted); margin-top: 10px; }
+      .tiny { font-size: 11px; color: var(--muted); }
+      .split { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+      @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } .log { height: 420px; } }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="top">
+        <div>
+          <h1>Simulador Externo (QA) — Transmetro</h1>
+          <div class="sub">Genera eventos de ocupación/alertas/refuerzos para ver el sistema “vivo” sin entrar al panel.</div>
+        </div>
+        <div class="pill" id="statusPill">Desconectado</div>
+      </div>
+
+      <div class="grid">
+        <div class="panel">
+          <p class="sectionTitle">Conexión</p>
+          <div class="field">
+            <label for="apiUrl">API URL</label>
+            <input id="apiUrl" value="http://127.0.0.1:5000/api" />
+          </div>
+          <div class="row">
+            <div class="field">
+              <label for="adminUser">Admin usuario</label>
+              <input id="adminUser" value="superadmin" />
+            </div>
+            <div class="field">
+              <label for="adminPass">Admin contraseña</label>
+              <input id="adminPass" type="password" value="ChangeMe2026!" />
+            </div>
+          </div>
+          <div class="buttons">
+            <button class="primary" id="btnConnect">Conectar</button>
+            <button id="btnRefresh" disabled>Refrescar datos</button>
+            <button id="btnClear">Limpiar log</button>
+          </div>
+          <div class="hint" id="connectHint">Conecta para cargar líneas/estaciones/buses desde el dashboard.</div>
+
+          <p class="sectionTitle" style="margin-top:16px;">Simulación</p>
+          <div class="row">
+            <div class="field">
+              <label for="mode">Modo</label>
+              <select id="mode">
+                <option value="operator">Operadores (realista)</option>
+                <option value="admin">Admin (rápido)</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="operatorPass">Contraseña operadores</label>
+              <input id="operatorPass" type="password" value="ChangeMe2026!" />
+            </div>
+          </div>
+          <div class="row">
+            <div class="field">
+              <label for="scenario">Escenario</label>
+              <select id="scenario">
+                <option value="normal">Normal</option>
+                <option value="peak">Hora pico</option>
+                <option value="low">Baja demanda</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="intervalMs">Intervalo (ms)</label>
+              <input id="intervalMs" type="number" min="250" value="1500" />
+            </div>
+          </div>
+          <div class="row3">
+            <div class="field">
+              <label for="steps">Pasos (0=infinito)</label>
+              <input id="steps" type="number" min="0" value="0" />
+            </div>
+            <div class="field">
+              <label for="busyPct">Carga % (0-100)</label>
+              <input id="busyPct" type="number" min="0" max="100" value="35" />
+            </div>
+            <div class="field">
+              <label for="satPct">Saturación % (0-100)</label>
+              <input id="satPct" type="number" min="0" max="100" value="6" />
+            </div>
+          </div>
+          <div class="row">
+            <div class="field">
+              <label for="batchSize">Eventos por ciclo</label>
+              <input id="batchSize" type="number" min="1" max="50" value="5" />
+            </div>
+            <div class="field">
+              <label for="delayMs">Delay entre escrituras (ms)</label>
+              <input id="delayMs" type="number" min="0" value="0" />
+            </div>
+          </div>
+
+          <p class="sectionTitle" style="margin-top:16px;">Objetivo</p>
+          <div class="field">
+            <label for="lineSelect">Línea</label>
+            <select id="lineSelect" disabled>
+              <option value="">Aleatorio</option>
+            </select>
+          </div>
+          <div class="row">
+            <div class="field">
+              <label for="stationSelect">Estación</label>
+              <select id="stationSelect" disabled>
+                <option value="">Aleatorio</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="busSelect">Bus</label>
+              <select id="busSelect" disabled>
+                <option value="">Aleatorio</option>
+              </select>
+            </div>
+          </div>
+
+          <p class="sectionTitle" style="margin-top:16px;">Ocupación</p>
+          <div class="row">
+            <div class="field">
+              <label for="occMode">Modo ocupación</label>
+              <select id="occMode">
+                <option value="auto">Automática (por escenario)</option>
+                <option value="fixed">Fija (valor)</option>
+                <option value="pct">Porcentaje de capacidad</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="occValue">Valor</label>
+              <input id="occValue" type="number" min="0" value="120" />
+            </div>
+          </div>
+
+          <p class="sectionTitle" style="margin-top:16px;">Clasificación</p>
+          <div class="row3">
+            <div class="field">
+              <label for="demand">Demanda global (0-100)</label>
+              <input id="demand" type="range" min="0" max="100" value="50" />
+              <div class="tiny" id="demandLabel">50</div>
+            </div>
+            <div class="field">
+              <label for="waveAmp">Ola amplitud</label>
+              <input id="waveAmp" type="number" min="0" max="100" value="25" />
+            </div>
+            <div class="field">
+              <label for="wavePeriodSec">Ola período (s)</label>
+              <input id="wavePeriodSec" type="number" min="5" value="60" />
+            </div>
+          </div>
+          <div class="row3">
+            <div class="field">
+              <label for="lowPctCfg">Baja ≤ (cfg %)</label>
+              <input id="lowPctCfg" type="number" value="0" disabled />
+            </div>
+            <div class="field">
+              <label for="satPctCfg">Saturación ≥ (cfg %)</label>
+              <input id="satPctCfg" type="number" value="0" disabled />
+            </div>
+            <div class="field">
+              <label for="classCount">Buses a ajustar</label>
+              <input id="classCount" type="number" min="1" value="18" />
+            </div>
+          </div>
+          <div class="row3">
+            <div class="field">
+              <label for="classLowShare">Baja (%)</label>
+              <input id="classLowShare" type="number" min="0" max="100" value="30" />
+            </div>
+            <div class="field">
+              <label for="classNormalShare">Normal (%)</label>
+              <input id="classNormalShare" type="number" min="0" max="100" value="50" />
+            </div>
+            <div class="field">
+              <label for="classSatShare">Saturación (%)</label>
+              <input id="classSatShare" type="number" min="0" max="100" value="20" />
+            </div>
+          </div>
+          <div class="buttons">
+            <button id="btnApplyClass" disabled>Aplicar clasificación</button>
+            <button id="btnWave" disabled>Iniciar ola</button>
+          </div>
+
+          <div class="buttons">
+            <button class="primary" id="btnStart" disabled>Iniciar</button>
+            <button class="danger" id="btnStop" disabled>Detener</button>
+            <button id="btnOnce" disabled>Ejecutar 1</button>
+          </div>
+
+          <div class="stats">
+            <div class="stat">
+              <div class="k">Eventos</div>
+              <div class="v" id="evCount">0</div>
+            </div>
+            <div class="stat">
+              <div class="k">Alertas</div>
+              <div class="v warn" id="alCount">0</div>
+            </div>
+            <div class="stat">
+              <div class="k">Errores</div>
+              <div class="v bad" id="erCount">0</div>
+            </div>
+          </div>
+          <div class="hint tiny" id="lastSync">Sincronizado: —</div>
+        </div>
+
+        <div class="panel">
+          <div class="split">
+            <p class="sectionTitle" style="margin:0;">Salida</p>
+            <div class="tiny" id="apiEcho"></div>
+          </div>
+          <div class="log" id="log"></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+
+      const state = {
+        adminToken: null,
+        overview: null,
+        running: false,
+        timer: null,
+        step: 0,
+        counts: { events: 0, alerts: 0, errors: 0 },
+        operatorTokens: new Map(),
+        wave: { running: false, timer: null, startMs: 0 }
+      };
+
+      const setStatus = (text, kind) => {
+        const el = $('statusPill');
+        el.textContent = text;
+        el.style.borderColor =
+          kind === 'ok' ? 'rgba(34,197,94,0.45)' :
+          kind === 'warn' ? 'rgba(245,158,11,0.45)' :
+          kind === 'bad' ? 'rgba(239,68,68,0.45)' :
+          'rgba(255,255,255,0.12)';
+        el.style.background =
+          kind === 'ok' ? 'rgba(34,197,94,0.10)' :
+          kind === 'warn' ? 'rgba(245,158,11,0.10)' :
+          kind === 'bad' ? 'rgba(239,68,68,0.10)' :
+          'rgba(255,255,255,0.03)';
+        el.style.color = kind === 'ok' ? '#bbf7d0' : kind === 'bad' ? '#fecaca' : '#cbd5e1';
+      };
+
+      const log = (line, kind) => {
+        const el = $('log');
+        const p = document.createElement('div');
+        p.className = 'logLine';
+        p.textContent = line;
+        p.style.color = kind === 'ok' ? '#bbf7d0' : kind === 'bad' ? '#fecaca' : kind === 'warn' ? '#fde68a' : '#e7efff';
+        el.prepend(p);
+        const children = el.children;
+        if (children.length > 250) el.removeChild(children[children.length - 1]);
+      };
+
+      const setCounts = () => {
+        $('evCount').textContent = String(state.counts.events);
+        $('alCount').textContent = String(state.counts.alerts);
+        $('erCount').textContent = String(state.counts.errors);
+      };
+
+      const apiBase = () => String($('apiUrl').value || '').replace(/\/+$/,'');
+
+      const http = async ({ token, method, path, body }) => {
+        const res = await fetch(`${apiBase()}${path}`, {
+          method,
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          },
+          body: body === undefined ? undefined : JSON.stringify(body)
+        });
+        const text = await res.text();
+        let data = null;
+        try { data = text ? JSON.parse(text) : null; } catch { data = text; }
+        if (!res.ok) {
+          const msg = typeof data === 'object' && data && data.message ? data.message : String(data);
+          const err = new Error(`${method} ${path} -> HTTP ${res.status}: ${msg}`);
+          err.status = res.status;
+          err.data = data;
+          throw err;
+        }
+        return data;
+      };
+
+      const slugify = (name) => {
+        const raw = String(name || '').trim();
+        if (!raw) return '';
+        return raw
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '_')
+          .replace(/^_+|_+$/g, '');
+      };
+
+      const operatorUserForStation = (stationName) => {
+        const slug = slugify(stationName);
+        return slug ? `op_${slug}` : '';
+      };
+
+      const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+      const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
+
+      const now = () => new Date().toLocaleTimeString();
+
+      const applyScenarioPreset = () => {
+        const sc = $('scenario').value;
+        if (sc === 'peak') { $('busyPct').value = '65'; $('satPct').value = '20'; return; }
+        if (sc === 'low') { $('busyPct').value = '15'; $('satPct').value = '6'; return; }
+        $('busyPct').value = '35'; $('satPct').value = '6';
+      };
+
+      const demandToShares = (demand) => {
+        const d = clamp(Number(demand) || 0, 0, 100);
+        const low = Math.round(45 - (d * 0.35));
+        const sat = Math.round(5 + (d * 0.45));
+        const normal = Math.max(0, 100 - low - sat);
+        return { low, normal, sat };
+      };
+
+      const applyDemandToInputs = (demand) => {
+        const d = clamp(Number(demand) || 0, 0, 100);
+        $('demandLabel').textContent = String(d);
+        const s = demandToShares(d);
+        $('classLowShare').value = String(s.low);
+        $('classNormalShare').value = String(s.normal);
+        $('classSatShare').value = String(s.sat);
+        const busy = clamp(Math.round(15 + d * 0.5), 0, 100);
+        const satBurst = clamp(Math.round(4 + d * 0.16), 0, 100);
+        $('busyPct').value = String(busy);
+        $('satPct').value = String(satBurst);
+      };
+
+      const computeOcupacionAuto = (capacidad) => {
+        const cap = Math.max(1, Number(capacidad) || 1);
+        const busy = clamp(Number($('busyPct').value) || 0, 0, 100);
+        const sat = clamp(Number($('satPct').value) || 0, 0, 100);
+        const dice = Math.random() * 100;
+        const isBurst = dice < sat;
+        if (isBurst) return Math.round(cap * (1.15 + Math.random() * 0.7));
+        const isBusy = dice < sat + busy;
+        if (isBusy) return Math.round(cap * (0.55 + Math.random() * 0.55));
+        return Math.round(cap * (0.05 + Math.random() * 0.35));
+      };
+
+      const computeOcupacion = (capacidad) => {
+        const mode = $('occMode').value;
+        const raw = Number($('occValue').value) || 0;
+        const cap = Math.max(1, Number(capacidad) || 1);
+        if (mode === 'fixed') return Math.max(0, Math.round(raw));
+        if (mode === 'pct') return Math.max(0, Math.round((clamp(raw, 0, 500) / 100) * cap));
+        return computeOcupacionAuto(cap);
+      };
+
+      const fillSelect = (selectEl, items, { valueKey, labelKey, keepFirst }) => {
+        const first = keepFirst ? selectEl.options[0] : null;
+        selectEl.innerHTML = '';
+        if (first) selectEl.appendChild(first);
+        for (const it of items) {
+          const opt = document.createElement('option');
+          opt.value = String(it[valueKey]);
+          opt.textContent = String(it[labelKey]);
+          selectEl.appendChild(opt);
+        }
+      };
+
+      const syncDropdowns = () => {
+        const ov = state.overview;
+        const ejes = Array.isArray(ov && ov.ejes) ? ov.ejes : [];
+        const buses = Array.isArray(ov && ov.buses) ? ov.buses : [];
+
+        const lineSelect = $('lineSelect');
+        const stationSelect = $('stationSelect');
+        const busSelect = $('busSelect');
+
+        fillSelect(lineSelect, ejes.map((e) => ({ id: e.id, nombre: e.nombre })), { valueKey: 'id', labelKey: 'nombre', keepFirst: true });
+        lineSelect.disabled = false;
+
+        const lineId = lineSelect.value ? Number(lineSelect.value) : null;
+        const eje = lineId ? ejes.find((e) => Number(e.id) === lineId) : null;
+        const estaciones = eje && Array.isArray(eje.estaciones) ? eje.estaciones : [];
+        fillSelect(stationSelect, estaciones.map((s) => ({ id: s.id, nombre: s.nombre })), { valueKey: 'id', labelKey: 'nombre', keepFirst: true });
+        stationSelect.disabled = false;
+
+        const filteredBuses = lineId ? buses.filter((b) => Number(b.linea_id) === lineId) : buses;
+        const busItems = filteredBuses.map((b) => ({ id: b.id, nombre: `${b.unidad} — ${b.linea_nombre || b.linea_id}` }));
+        fillSelect(busSelect, busItems, { valueKey: 'id', labelKey: 'nombre', keepFirst: true });
+        busSelect.disabled = false;
+      };
+
+      const refreshOverview = async () => {
+        if (!state.adminToken) throw new Error('Conecta primero (admin token).');
+        const ov = await http({ token: state.adminToken, method: 'GET', path: '/dashboard/overview' });
+        state.overview = ov;
+        $('lastSync').textContent = `Sincronizado: ${now()}`;
+        const lowCfg = Number.isFinite(ov?.config?.low_occupancy_pct) ? ov.config.low_occupancy_pct : null;
+        const satCfg = Number.isFinite(ov?.config?.saturation_pct) ? ov.config.saturation_pct : null;
+        $('lowPctCfg').value = lowCfg === null ? '' : String(lowCfg);
+        $('satPctCfg').value = satCfg === null ? '' : String(satCfg);
+        syncDropdowns();
+      };
+
+      const connect = async () => {
+        $('btnConnect').disabled = true;
+        $('btnRefresh').disabled = true;
+        $('btnStart').disabled = true;
+        $('btnStop').disabled = true;
+        $('btnOnce').disabled = true;
+        setStatus('Conectando...', 'warn');
+        $('apiEcho').textContent = apiBase();
+        try {
+          const username = $('adminUser').value;
+          const password = $('adminPass').value;
+          const login = await http({ method: 'POST', path: '/auth/login', body: { username, password } });
+          if (!login || !login.token) throw new Error('Login sin token.');
+          state.adminToken = login.token;
+          state.operatorTokens = new Map();
+          await refreshOverview();
+          setStatus('Conectado', 'ok');
+          $('connectHint').textContent = 'Listo. Puedes ejecutar simulación y ver cambios en el sistema.';
+          $('btnRefresh').disabled = false;
+          $('btnStart').disabled = false;
+          $('btnOnce').disabled = false;
+          $('btnApplyClass').disabled = false;
+          $('btnWave').disabled = false;
+        } catch (e) {
+          state.adminToken = null;
+          state.overview = null;
+          setStatus('Error de conexión', 'bad');
+          log(`[${now()}] ${e.message}`, 'bad');
+          $('connectHint').textContent = e.message;
+        } finally {
+          $('btnConnect').disabled = false;
+        }
+      };
+
+      const getOperatorToken = async (stationName) => {
+        const pass = $('operatorPass').value;
+        const user = operatorUserForStation(stationName);
+        if (!user) throw new Error(`No se pudo derivar usuario operador para estación: ${stationName}`);
+        const cached = state.operatorTokens.get(user);
+        if (cached) return cached;
+        const login = await http({ method: 'POST', path: '/auth/login', body: { username: user, password: pass } });
+        if (!login || !login.token) throw new Error(`Login sin token para ${user}`);
+        state.operatorTokens.set(user, login.token);
+        return login.token;
+      };
+
+      const chooseTarget = () => {
+        const ov = state.overview;
+        const ejes = Array.isArray(ov && ov.ejes) ? ov.ejes : [];
+        const buses = Array.isArray(ov && ov.buses) ? ov.buses : [];
+        if (ejes.length === 0 || buses.length === 0) throw new Error('No hay datos en overview (ejes/buses).');
+
+        const lineId = $('lineSelect').value ? Number($('lineSelect').value) : null;
+        const stationId = $('stationSelect').value ? Number($('stationSelect').value) : null;
+        const busId = $('busSelect').value ? Number($('busSelect').value) : null;
+
+        const candidatesEjes = lineId ? ejes.filter((e) => Number(e.id) === lineId) : ejes;
+        const eje = pick(candidatesEjes);
+        const estaciones = Array.isArray(eje && eje.estaciones) ? eje.estaciones : [];
+        if (estaciones.length === 0) throw new Error('La línea seleccionada no tiene estaciones.');
+
+        const estacion = stationId ? estaciones.find((s) => Number(s.id) === stationId) : pick(estaciones);
+        if (!estacion) throw new Error('No se pudo seleccionar estación.');
+
+        const candidatesBuses = busId
+          ? buses.filter((b) => Number(b.id) === busId)
+          : buses.filter((b) => Number(b.linea_id) === Number(eje.id));
+        const bus = pick(candidatesBuses.length > 0 ? candidatesBuses : buses);
+        if (!bus) throw new Error('No se pudo seleccionar bus.');
+
+        return { eje, estacion, bus };
+      };
+
+      const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+      const shuffle = (arr) => {
+        const out = arr.slice();
+        for (let i = out.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [out[i], out[j]] = [out[j], out[i]];
+        }
+        return out;
+      };
+
+      const randomInt = (min, max) => {
+        const a = Math.ceil(min);
+        const b = Math.floor(max);
+        if (b <= a) return a;
+        return a + Math.floor(Math.random() * (b - a + 1));
+      };
+
+      const estacionesPorLinea = (lineaId) => {
+        const ov = state.overview;
+        const ejes = Array.isArray(ov && ov.ejes) ? ov.ejes : [];
+        const eje = ejes.find((e) => Number(e.id) === Number(lineaId)) || null;
+        const estaciones = eje && Array.isArray(eje.estaciones) ? eje.estaciones : [];
+        return estaciones;
+      };
+
+      const pickEstacionForBus = (bus) => {
+        const stationId = $('stationSelect').value ? Number($('stationSelect').value) : null;
+        if (Number.isFinite(stationId) && stationId > 0) {
+          const estaciones = estacionesPorLinea(bus.linea_id);
+          return estaciones.find((s) => Number(s.id) === stationId) || null;
+        }
+        const estaciones = estacionesPorLinea(bus.linea_id);
+        if (Array.isArray(estaciones) && estaciones.length > 0) return pick(estaciones);
+        return null;
+      };
+
+      const sendEvent = async () => {
+        if (!state.adminToken) throw new Error('Conecta primero.');
+        const { estacion, bus } = chooseTarget();
+        const ocupacion = computeOcupacion(bus.capacidad_pasajeros);
+        const mode = $('mode').value;
+        if (mode === 'admin') {
+          const out = await http({
+            token: state.adminToken,
+            method: 'PUT',
+            path: `/buses/${bus.id}/ocupacion`,
+            body: { ocupacion_actual: ocupacion, estacion_id: Number(estacion.id) }
+          });
+          const alertas = Array.isArray(out && out.alertas) ? out.alertas : [];
+          state.counts.events += 1;
+          if (alertas.length > 0) state.counts.alerts += 1;
+          setCounts();
+          log(`[${now()}] admin bus=${bus.unidad} línea=${bus.linea_nombre || bus.linea_id} estación=${estacion.nombre} ocup=${ocupacion}/${bus.capacidad_pasajeros}${alertas[0] && alertas[0].tipo ? ' alerta=' + alertas[0].tipo : ''}`, alertas.length > 0 ? 'warn' : 'ok');
+          return;
+        }
+
+        const opToken = await getOperatorToken(estacion.nombre);
+        const out = await http({
+          token: opToken,
+          method: 'POST',
+          path: '/ocupacion',
+          body: { bus_id: bus.id, ocupacion_actual: ocupacion }
+        });
+        const alertas = Array.isArray(out && out.alertas) ? out.alertas : [];
+        state.counts.events += 1;
+        if (alertas.length > 0) state.counts.alerts += 1;
+        setCounts();
+        log(`[${now()}] operador(${operatorUserForStation(estacion.nombre)}) bus=${bus.unidad} línea=${bus.linea_nombre || bus.linea_id} estación=${estacion.nombre} ocup=${ocupacion}/${bus.capacidad_pasajeros}${alertas[0] && alertas[0].tipo ? ' alerta=' + alertas[0].tipo : ''}`, alertas.length > 0 ? 'warn' : 'ok');
+      };
+
+      const applyClassification = async () => {
+        if (!state.adminToken) throw new Error('Conecta primero.');
+        await refreshOverview();
+        const ov = state.overview;
+        const busesAll = Array.isArray(ov && ov.buses) ? ov.buses : [];
+        const lowPct = Number.isFinite(ov?.config?.low_occupancy_pct) ? ov.config.low_occupancy_pct : null;
+        const satPct = Number.isFinite(ov?.config?.saturation_pct) ? ov.config.saturation_pct : null;
+        if (lowPct === null || satPct === null) throw new Error('Faltan umbrales de configuración (low/saturation).');
+        if (satPct <= lowPct) throw new Error('Umbrales inválidos: saturación debe ser mayor que baja.');
+
+        const lineId = $('lineSelect').value ? Number($('lineSelect').value) : null;
+        const buses = lineId ? busesAll.filter((b) => Number(b.linea_id) === lineId) : busesAll;
+        if (buses.length === 0) throw new Error('No hay buses para la línea seleccionada.');
+
+        const requested = Math.max(1, Number($('classCount').value) || 1);
+        const total = Math.min(requested, buses.length);
+
+        const lowShare = clamp(Number($('classLowShare').value) || 0, 0, 100);
+        const normalShare = clamp(Number($('classNormalShare').value) || 0, 0, 100);
+        const satShare = clamp(Number($('classSatShare').value) || 0, 0, 100);
+        const sum = lowShare + normalShare + satShare;
+        if (sum <= 0) throw new Error('La distribución debe sumar más de 0.');
+        const lowN = Math.round(total * (lowShare / sum));
+        const satN = Math.round(total * (satShare / sum));
+        const normalN = Math.max(0, total - lowN - satN);
+
+        const shuffled = shuffle(buses).slice(0, total);
+        const lowList = shuffled.slice(0, lowN);
+        const normalList = shuffled.slice(lowN, lowN + normalN);
+        const satList = shuffled.slice(lowN + normalN);
+
+        const delayMs = Math.max(0, Number($('delayMs').value) || 0);
+
+        const execOne = async (bus, category) => {
+          const estacion = pickEstacionForBus(bus);
+          if (!estacion) throw new Error(`No hay estación disponible para línea ${bus.linea_id}`);
+          let pct = 0;
+          if (category === 'low') pct = randomInt(0, Math.max(0, lowPct));
+          else if (category === 'normal') pct = randomInt(lowPct + 1, satPct - 1);
+          else pct = randomInt(satPct, Math.min(200, satPct + 50));
+          const capacidad = Math.max(1, Number(bus.capacidad_pasajeros) || 1);
+          const ocupacion = Math.max(0, Math.round((pct / 100) * capacidad));
+
+          const out = await http({
+            token: state.adminToken,
+            method: 'PUT',
+            path: `/buses/${bus.id}/ocupacion`,
+            body: { ocupacion_actual: ocupacion, estacion_id: Number(estacion.id) }
+          });
+          const alertas = Array.isArray(out && out.alertas) ? out.alertas : [];
+          state.counts.events += 1;
+          if (alertas.length > 0) state.counts.alerts += 1;
+          setCounts();
+          log(`[${now()}] class=${category} bus=${bus.unidad} línea=${bus.linea_nombre || bus.linea_id} estación=${estacion.nombre} ocup=${ocupacion}/${capacidad} (~${pct}%)${alertas[0] && alertas[0].tipo ? ' alerta=' + alertas[0].tipo : ''}`, category === 'sat' ? 'warn' : 'ok');
+        };
+
+        log(`[${now()}] aplicando clasificación: total=${total} baja=${lowList.length} normal=${normalList.length} sat=${satList.length} (low≤${lowPct}%, sat≥${satPct}%)`, 'ok');
+        for (const b of lowList) {
+          await execOne(b, 'low');
+          if (delayMs) await sleep(delayMs);
+        }
+        for (const b of normalList) {
+          await execOne(b, 'normal');
+          if (delayMs) await sleep(delayMs);
+        }
+        for (const b of satList) {
+          await execOne(b, 'sat');
+          if (delayMs) await sleep(delayMs);
+        }
+        log(`[${now()}] clasificación aplicada`, 'ok');
+      };
+
+      const stop = () => {
+        state.running = false;
+        if (state.timer) { clearTimeout(state.timer); state.timer = null; }
+        $('btnStart').disabled = !state.adminToken;
+        $('btnStop').disabled = true;
+        setStatus('Conectado', 'ok');
+      };
+
+      const stopWave = () => {
+        state.wave.running = false;
+        if (state.wave.timer) {
+          clearInterval(state.wave.timer);
+          state.wave.timer = null;
+        }
+        $('btnWave').textContent = 'Iniciar ola';
+      };
+
+      const startWave = async () => {
+        if (!state.adminToken) throw new Error('Conecta primero.');
+        if (state.wave.running) return;
+        state.wave.running = true;
+        state.wave.startMs = Date.now();
+        $('btnWave').textContent = 'Detener ola';
+
+        const tick = async () => {
+          if (!state.wave.running) return;
+          const base = clamp(Number($('demand').value) || 0, 0, 100);
+          const amp = clamp(Number($('waveAmp').value) || 0, 0, 100);
+          const periodSec = Math.max(5, Number($('wavePeriodSec').value) || 60);
+          const t = (Date.now() - state.wave.startMs) / 1000;
+          const wave = Math.sin((2 * Math.PI * t) / periodSec);
+          const current = clamp(Math.round(base + wave * amp), 0, 100);
+          $('demand').value = String(current);
+          applyDemandToInputs(current);
+          await applyClassification();
+        };
+
+        await tick();
+        state.wave.timer = setInterval(() => {
+          tick().catch((e) => {
+            state.counts.errors += 1;
+            setCounts();
+            log(`[${now()}] error: ${e.message}`, 'bad');
+          });
+        }, 15000);
+      };
+
+      const start = async () => {
+        if (state.running) return;
+        if (!state.adminToken) { log(`[${now()}] conecta primero`, 'bad'); return; }
+        state.running = true;
+        state.step = 0;
+        state.counts = { events: 0, alerts: 0, errors: 0 };
+        setCounts();
+        setStatus('Simulando...', 'warn');
+        $('btnStart').disabled = true;
+        $('btnStop').disabled = false;
+        $('btnOnce').disabled = true;
+
+        const steps = Math.max(0, Number($('steps').value) || 0);
+        const intervalMs = Math.max(250, Number($('intervalMs').value) || 1500);
+        const batchSize = clamp(Number($('batchSize').value) || 1, 1, 50);
+        const delayMs = Math.max(0, Number($('delayMs').value) || 0);
+
+        const loop = async () => {
+          if (!state.running) return;
+          state.step += 1;
+          try {
+            if (state.step % 20 === 1) await refreshOverview();
+            for (let i = 0; i < batchSize; i++) {
+              await sendEvent();
+              if (delayMs) await sleep(delayMs);
+            }
+          } catch (e) {
+            state.counts.errors += 1;
+            setCounts();
+            log(`[${now()}] error: ${e.message}`, 'bad');
+          }
+
+          const done = steps > 0 && state.step >= steps;
+          if (done) {
+            log(`[${now()}] simulación finalizada (steps=${steps})`, 'ok');
+            $('btnOnce').disabled = false;
+            stop();
+            return;
+          }
+
+          state.timer = setTimeout(loop, intervalMs);
+        };
+
+        state.timer = setTimeout(loop, 10);
+      };
+
+      $('btnConnect').addEventListener('click', connect);
+      $('btnRefresh').addEventListener('click', async () => {
+        try {
+          await refreshOverview();
+          log(`[${now()}] refrescado`, 'ok');
+        } catch (e) {
+          log(`[${now()}] error: ${e.message}`, 'bad');
+        }
+      });
+      $('btnClear').addEventListener('click', () => { $('log').innerHTML = ''; });
+      $('btnStart').addEventListener('click', start);
+      $('btnStop').addEventListener('click', stop);
+      $('btnApplyClass').addEventListener('click', async () => {
+        try {
+          $('btnApplyClass').disabled = true;
+          await applyClassification();
+        } catch (e) {
+          state.counts.errors += 1;
+          setCounts();
+          log(`[${now()}] error: ${e.message}`, 'bad');
+        } finally {
+          $('btnApplyClass').disabled = !state.adminToken;
+        }
+      });
+      $('btnWave').addEventListener('click', async () => {
+        try {
+          if (state.wave.running) {
+            stopWave();
+            return;
+          }
+          $('btnWave').disabled = true;
+          await startWave();
+        } catch (e) {
+          state.counts.errors += 1;
+          setCounts();
+          log(`[${now()}] error: ${e.message}`, 'bad');
+          stopWave();
+        } finally {
+          $('btnWave').disabled = !state.adminToken;
+        }
+      });
+      $('btnOnce').addEventListener('click', async () => {
+        try {
+          if (!state.adminToken) throw new Error('Conecta primero.');
+          await refreshOverview();
+          const delayMs = Math.max(0, Number($('delayMs').value) || 0);
+          const batchSize = clamp(Number($('batchSize').value) || 1, 1, 50);
+          for (let i = 0; i < batchSize; i++) {
+            await sendEvent();
+            if (delayMs) await sleep(delayMs);
+          }
+        } catch (e) {
+          state.counts.errors += 1;
+          setCounts();
+          log(`[${now()}] error: ${e.message}`, 'bad');
+        }
+      });
+
+      $('lineSelect').addEventListener('change', () => {
+        try { syncDropdowns(); } catch {}
+      });
+      $('scenario').addEventListener('change', applyScenarioPreset);
+      $('demand').addEventListener('input', (e) => applyDemandToInputs(e.target.value));
+      applyScenarioPreset();
+      applyDemandToInputs($('demand').value);
+      setStatus('Desconectado', 'warn');
+      $('apiEcho').textContent = apiBase();
+    </script>
+  </body>
+</html>
