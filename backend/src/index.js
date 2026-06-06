@@ -141,7 +141,7 @@ const hasWeb = fs.existsSync(webIndex);
 
 if (hasWeb) {
   app.use(express.static(webRoot));
-  app.get('*', (req, res, next) => {
+  app.get('/*splat', (req, res, next) => {
     const method = req.method?.toUpperCase?.() ?? req.method;
     if (!['GET', 'HEAD'].includes(method)) return next();
     if (req.path?.startsWith('/api')) return next();

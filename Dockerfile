@@ -1,4 +1,4 @@
-FROM node:22-alpine AS frontend_build
+FROM node:22-bookworm-slim AS frontend_build
 WORKDIR /build/frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
@@ -7,12 +7,12 @@ ARG VITE_API_URL=/api
 ENV VITE_API_URL=$VITE_API_URL
 RUN npm run build
 
-FROM node:22-alpine AS backend_deps
+FROM node:22-bookworm-slim AS backend_deps
 WORKDIR /build/backend
 COPY backend/package.json backend/package-lock.json ./
 RUN npm ci --omit=dev
 
-FROM node:22-alpine AS runtime
+FROM node:22-bookworm-slim AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
 COPY --from=backend_deps /build/backend/node_modules ./node_modules
